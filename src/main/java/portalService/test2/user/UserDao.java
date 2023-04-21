@@ -1,6 +1,9 @@
 package portalService.test2.user;
 
 import portalService.test2.connection.ConnectionMaker;
+import portalService.test2.statement.DeleteStatementStrategy;
+import portalService.test2.statement.StatementStrategy;
+import portalService.test2.statement.UpdateStatementStrategy;
 
 import javax.sql.DataSource;
 import java.sql.*;
@@ -20,7 +23,7 @@ public  class UserDao {
         Connection con = null;
         PreparedStatement psmt = null;
         ResultSet rs = null;
-        User user;
+        User user = null;
 
         try {
             con = dataSource.getConnection();
@@ -29,12 +32,14 @@ public  class UserDao {
             psmt.setLong(1, id);
             rs = psmt.executeQuery();
 
-            rs.next();
+            if(rs.next()) {
+                user = new User();
+                user.setId(rs.getLong("id"));
+                user.setName(rs.getString("name"));
+                user.setPassword(rs.getString("password"));
+            }
 
-            user = new User();
-            user.setId(rs.getLong("id"));
-            user.setName(rs.getString("name"));
-            user.setPassword(rs.getString("password"));
+
         } finally {
             try {
                 rs.close();
@@ -78,6 +83,39 @@ public  class UserDao {
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
+            try {
+                psmt.close();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+            try {
+                con.close();
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public void update(User user) throws SQLException {
+        StatementStrategy statementStrategy = new UpdateStatementStrategy(user);
+        jdbcContextForUpdate(statementStrategy);
+    }
+
+    public void delete(Long id) throws SQLException {
+        StatementStrategy statementStrategy = new DeleteStatementStrategy(id);
+        jdbcContextForUpdate(statementStrategy);
+    }
+
+    public void jdbcContextForUpdate(StatementStrategy statementStrategy) throws SQLException {
+        Connection con = null;
+        PreparedStatement psmt = null;
+
+        try {
+            con = dataSource.getConnection();
+            psmt = statementStrategy.makeStatement(con);
+            psmt.executeUpdate();
+
+        } finally {
             try {
                 psmt.close();
             } catch (SQLException e) {
